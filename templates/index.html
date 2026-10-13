@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BackTester - Strategy Engine & Data Viewer (Python)</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="theme-dark">
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="brand-badge">
+                <span class="brand-icon">📈</span>
+                <span class="brand-text">BACKTESTER</span>
+                <span class="edition-tag">PYTHON</span>
+            </div>
+            <div class="header-subtitle">Historical Data, Multi-Strategy Backtesting, MEIC 0DTE & API Monitor</div>
+        </div>
+        <div class="header-right">
+            <button id="themeToggleBtn" class="btn btn-secondary">🌓 Toggle Theme</button>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+        <button class="nav-tab active" data-tab="tab-data-viewer">📊 Data Viewer</button>
+        <button class="nav-tab" data-tab="tab-backtest">⚡ Strategy Backtest</button>
+        <button class="nav-tab" data-tab="tab-meic">🎯 MEIC 0DTE</button>
+        <button class="nav-tab" data-tab="tab-ironfly">🪜 Tripple Iron Fly</button>
+        <button class="nav-tab" data-tab="tab-api-monitor">📡 API Monitor</button>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="app-content">
+
+        <!-- ==================== TAB 1: DATA VIEWER ==================== -->
+        <section id="tab-data-viewer" class="tab-pane active">
+            <div class="card control-bar">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dvSymbol">Symbol:</label>
+                        <input type="text" id="dvSymbol" value="SPY" class="form-input text-upper" style="width: 100px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="dvMinutes">Minutes:</label>
+                        <input type="number" id="dvMinutes" value="15" min="1" class="form-input" style="width: 70px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="dvDays">Days:</label>
+                        <input type="number" id="dvDays" value="5" min="1" class="form-input" style="width: 70px;">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="dvForceRefresh"> Force refresh (bypass disk cache)
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button id="dvFetchBtn" class="btn btn-primary">Fetch Data</button>
+                        <button id="dvSaveBtn" class="btn btn-secondary" disabled>Save CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <div class="chart-header">
+                    <div id="dvChartTitle" class="chart-title">SPY - 15m Candlestick Chart</div>
+                    <div class="chart-meta" id="dvChartMeta">No data fetched yet</div>
+                </div>
+                <div id="chart-data-viewer" class="tv-chart-container"></div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 2: STRATEGY BACKTEST ==================== -->
+        <section id="tab-backtest" class="tab-pane">
+            <div class="backtest-layout">
+                <!-- Left Sidebar: Parameters & Controls -->
+                <aside class="backtest-sidebar">
+                    <div class="card sidebar-card">
+                        <h3 class="card-title">Strategy Configuration</h3>
+                        
+                        <div class="form-group">
+                            <label for="btStrategySelect">Select Strategy:</label>
+                            <select id="btStrategySelect" class="form-select"></select>
+                        </div>
+
+                        <div id="btStrategyDesc" class="strategy-desc-box"></div>
+
+                        <div class="form-divider">Data Feed & Sizing</div>
+
+                        <div class="form-group">
+                            <label for="btSymbol">Symbol:</label>
+                            <input type="text" id="btSymbol" value="SPY" class="form-input text-upper">
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="btExecAmt">Exec Timeframe:</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="btExecAmt" value="15" min="1" class="form-input">
+                                    <select id="btExecUnit" class="form-select">
+                                        <option value="Min" selected>Minute</option>
+                                        <option value="Hour">Hour</option>
+                                        <option value="Day">Day</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group" id="anchorTfGroup">
+                                <label for="btAnchorAmt">Anchor Timeframe:</label>
+                                <div class="input-with-unit">
+                                    <input type="number" id="btAnchorAmt" value="1" min="1" class="form-input">
+                                    <select id="btAnchorUnit" class="form-select">
+                                        <option value="Min">Minute</option>
+                                        <option value="Hour" selected>Hour</option>
+                                        <option value="Day">Day</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label for="btLookback">Lookback (Days):</label>
+                                <input type="number" id="btLookback" value="60" min="1" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="btInitialEquity">Initial Capital ($):</label>
+                                <input type="number" id="btInitialEquity" value="100000" min="1000" class="form-input">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="btSplitDate">In/Out-of-sample split date (optional):</label>
+                            <input type="date" id="btSplitDate" class="form-input">
+                        </div>
+
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="btForceRefresh"> Force refresh bars
+                            </label>
+                        </div>
+
+                        <div class="form-divider">Strategy Parameters</div>
+                        <div id="btDynamicParams" class="dynamic-params-container"></div>
+
+                        <div class="sidebar-actions">
+                            <button id="btRunBtn" class="btn btn-primary btn-block">Run Backtest</button>
+                            <button id="btOptimizeBtn" class="btn btn-accent btn-block">⚡ Run Optimizer</button>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Right Main: Results, Charts & Tables -->
+                <div class="backtest-main">
+                    <!-- Metrics Summary Tiles -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Sharpe Ratio</div>
+                            <div id="btSharpe" class="metric-value font-mono">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">CAGR</div>
+                            <div id="btCagr" class="metric-value font-mono">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Max Drawdown</div>
+                            <div id="btMaxDd" class="metric-value font-mono">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Win Rate</div>
+                            <div id="btWinRate" class="metric-value font-mono">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Trades Executed</div>
+                            <div id="btNumTrades" class="metric-value font-mono">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Profit Factor</div>
+                            <div id="btProfitFactor" class="metric-value font-mono">--</div>
+                        </div>
+                    </div>
+
+                    <!-- In-sample / Out-of-sample breakdown (shown when a split date is set) -->
+                    <div id="btPeriodsCard" class="card table-card" style="display: none; margin-bottom: 18px;">
+                        <div class="table-header">
+                            <h3 class="card-title">In-Sample vs Out-of-Sample</h3>
+                        </div>
+                        <div class="table-scroll">
+                            <table id="btPeriodsTable" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Net P&amp;L</th>
+                                        <th>CAGR</th>
+                                        <th>Sharpe</th>
+                                        <th>Max DD</th>
+                                        <th>Profit Factor</th>
+                                        <th>Win Rate</th>
+                                        <th>Trades</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Chart Container with Price/Equity toggle -->
+                    <div class="card chart-card">
+                        <div class="chart-header">
+                            <div class="chart-toggles">
+                                <button id="btTogglePrice" class="btn btn-sm btn-tab active">Price & Indicator Overlays</button>
+                                <button id="btToggleEquity" class="btn btn-sm btn-tab">Portfolio Equity Curve</button>
+                            </div>
+                            <div id="btChartMeta" class="chart-meta">Ready to test</div>
+                        </div>
+                        <div id="chart-backtest-price" class="tv-chart-container"></div>
+                        <div id="chart-backtest-equity" class="tv-chart-container" style="display: none;"></div>
+                    </div>
+
+                    <!-- Progress Console Log -->
+                    <div class="card console-card">
+                        <div class="console-header">Execution Console</div>
+                        <div id="btConsole" class="console-box">System idle. Select strategy and click 'Run Backtest'.</div>
+                    </div>
+
+                    <!-- Trades Data Table -->
+                    <div class="card table-card">
+                        <div class="table-header">
+                            <h3 class="card-title">Trade Execution Log</h3>
+                            <div id="btTradesCount" class="table-meta">0 trades</div>
+                        </div>
+                        <div class="table-scroll">
+                            <table id="btTradesTable" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Entry Time</th>
+                                        <th>Exit Time</th>
+                                        <th>Side</th>
+                                        <th>Entry Price</th>
+                                        <th>Exit Price</th>
+                                        <th>Shares</th>
+                                        <th>PnL ($)</th>
+                                        <th>Return (%)</th>
+                                        <th>Exit Reason</th>
+                                        <th>Bars Held</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="11" class="text-center text-muted">No trades recorded yet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: MEIC 0DTE BACKTEST ==================== -->
+        <section id="tab-meic" class="tab-pane">
+            <div class="card control-bar">
+                <div class="form-row wrap-row">
+                    <div class="form-group">
+                        <label for="meicSymbol">Symbol:</label>
+                        <input type="text" id="meicSymbol" value="SPY" class="form-input text-upper" style="width: 80px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicDays">Days:</label>
+                        <input type="number" id="meicDays" value="30" min="1" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicTimeframe">Timeframe (m):</label>
+                        <input type="number" id="meicTimeframe" value="5" min="1" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicSchedule">Schedule ET:</label>
+                        <input type="text" id="meicSchedule" value="09:45, 10:45, 11:45, 13:00, 14:00" class="form-input" style="width: 220px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicCallDelta">Call Delta:</label>
+                        <input type="number" id="meicCallDelta" value="0.10" step="0.01" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicPutDelta">Put Delta:</label>
+                        <input type="number" id="meicPutDelta" value="0.10" step="0.01" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicWingWidth">Wing Width ($):</label>
+                        <input type="number" id="meicWingWidth" value="5.0" step="0.5" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicQty">Qty/Tranche:</label>
+                        <input type="number" id="meicQty" value="1" min="1" class="form-input" style="width: 55px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicTP">Take Profit (%):</label>
+                        <input type="number" id="meicTP" value="50" min="1" class="form-input" style="width: 60px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="meicSL">Stop Mult (x):</label>
+                        <input type="number" id="meicSL" value="1.0" step="0.1" class="form-input" style="width: 60px;">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="meicEnableAdx" checked> ADX &le; 25
+                        </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="meicForceRefresh"> Force Refresh
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button id="meicRunBtn" class="btn btn-primary">Run MEIC Backtest</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MEIC Metrics Summary Tiles -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Realized P&L</div>
+                    <div id="meicTotalPnl" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Return on Capital</div>
+                    <div id="meicReturnPct" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Win Rate</div>
+                    <div id="meicWinRate" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Profit Factor</div>
+                    <div id="meicProfitFactor" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Max Drawdown</div>
+                    <div id="meicMaxDd" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Windows / Skipped ADX</div>
+                    <div id="meicWindowsSkipped" class="metric-value font-mono">--</div>
+                </div>
+            </div>
+
+            <!-- MEIC Equity Chart -->
+            <div class="card chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">MEIC 0DTE Cumulative Equity Curve</div>
+                    <div id="meicChartMeta" class="chart-meta">Ready</div>
+                </div>
+                <div id="chart-meic-equity" class="tv-chart-container"></div>
+            </div>
+
+            <!-- MEIC Console -->
+            <div class="card console-card">
+                <div class="console-header">MEIC Simulation Console</div>
+                <div id="meicConsole" class="console-box">Ready. Click 'Run MEIC Backtest' to simulate 0DTE Iron Condors.</div>
+            </div>
+
+            <!-- MEIC Trades Table -->
+            <div class="card table-card">
+                <div class="table-header">
+                    <h3 class="card-title">MEIC 0DTE Tranche History</h3>
+                    <div id="meicTradesCount" class="table-meta">0 trades</div>
+                </div>
+                <div class="table-scroll">
+                    <table id="meicTradesTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date</th>
+                                <th>Scheduled</th>
+                                <th>Entry ET</th>
+                                <th>Exit ET</th>
+                                <th>Spot In</th>
+                                <th>Spot Out</th>
+                                <th>Iron Condor Strikes</th>
+                                <th>Credit</th>
+                                <th>Exit Debit</th>
+                                <th>PnL ($)</th>
+                                <th>Return (%)</th>
+                                <th>Exit Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="13" class="text-center text-muted">No simulated tranches yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 4: TRIPPLE IRON FLY BACKTEST ==================== -->
+        <section id="tab-ironfly" class="tab-pane">
+            <div class="card control-bar">
+                <div class="form-row wrap-row">
+                    <div class="form-group">
+                        <label for="ifSymbol">Symbol:</label>
+                        <input type="text" id="ifSymbol" value="$SPX" class="form-input text-upper" style="width: 80px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifDays">Days:</label>
+                        <input type="number" id="ifDays" value="30" min="1" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifTimeframe">Timeframe (m):</label>
+                        <input type="number" id="ifTimeframe" value="5" min="1" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifFirstEntry">First Entry ET:</label>
+                        <input type="text" id="ifFirstEntry" value="09:45" class="form-input" style="width: 70px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifSpacing">Spacing (pts):</label>
+                        <input type="number" id="ifSpacing" value="5.0" step="1.0" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifTrigger">Trigger (pts):</label>
+                        <input type="number" id="ifTrigger" value="2.5" step="0.5" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifWingWidth">Wing Width:</label>
+                        <input type="number" id="ifWingWidth" value="20.0" step="5.0" class="form-input" style="width: 65px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="ifMaxFlies">Max Flies:</label>
+                        <input type="number" id="ifMaxFlies" value="3" min="1" class="form-input" style="width: 55px;">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="ifBailOpposite" checked> Bail On Opposite Touch
+                        </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="ifRollAtMax"> Roll at Cap
+                        </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="ifForceRefresh"> Force Refresh
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button id="ifRunBtn" class="btn btn-primary">Run SPX Ladder</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ifWarningBanner" class="alert-banner warning" style="display: none;"></div>
+
+            <!-- Iron Fly Metrics Summary Tiles -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Net Realized P&L</div>
+                    <div id="ifNetPnl" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Gross Model P&L</div>
+                    <div id="ifGrossPnl" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Slippage & Commission Drag</div>
+                    <div id="ifCostDrag" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Win Rate</div>
+                    <div id="ifWinRate" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Max Drawdown</div>
+                    <div id="ifMaxDd" class="metric-value font-mono">--</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Peak Concurrent Flies</div>
+                    <div id="ifPeakFlies" class="metric-value font-mono">--</div>
+                </div>
+            </div>
+
+            <!-- Iron Fly Equity Chart -->
+            <div class="card chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">SPX IF MAX 3 Cumulative Equity Curve (Net of Costs)</div>
+                    <div id="ifChartMeta" class="chart-meta">Ready</div>
+                </div>
+                <div id="chart-ironfly-equity" class="tv-chart-container"></div>
+            </div>
+
+            <!-- Iron Fly Console -->
+            <div class="card console-card">
+                <div class="console-header">Ladder Simulation Console</div>
+                <div id="ifConsole" class="console-box">Ready. Click 'Run SPX Ladder' to simulate dynamic 0DTE Iron Fly laddering.</div>
+            </div>
+
+            <!-- Iron Fly Trades Table -->
+            <div class="card table-card">
+                <div class="table-header">
+                    <h3 class="card-title">Ladder Position & Bail History</h3>
+                    <div id="ifTradesCount" class="table-meta">0 flies traded</div>
+                </div>
+                <div class="table-scroll">
+                    <table id="ifTradesTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date</th>
+                                <th>Step</th>
+                                <th>Entry ET</th>
+                                <th>Exit ET</th>
+                                <th>Spot In</th>
+                                <th>Spot Out</th>
+                                <th>Fly Strikes (Wing/[Body]/Wing)</th>
+                                <th>Entry Credit</th>
+                                <th>Exit Debit</th>
+                                <th>Gross PnL</th>
+                                <th>Total Cost</th>
+                                <th>Net PnL</th>
+                                <th>Exit Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="14" class="text-center text-muted">No ladder positions yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== TAB 5: API MONITOR ==================== -->
+        <section id="tab-api-monitor" class="tab-pane">
+            <!-- Live API KPI Tiles -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Today's API Calls</div>
+                    <div id="apiCallsToday" class="metric-value font-mono text-cyan">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Calls Last Hour</div>
+                    <div id="apiCallsHour" class="metric-value font-mono">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Calls Last Minute</div>
+                    <div id="apiCallsMinute" class="metric-value font-mono">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Client Pacing Target</div>
+                    <div class="metric-value font-mono text-emerald">150 / min</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Rate Limit Budget Status</div>
+                    <div class="metric-value font-mono text-emerald">Optimal (Safe)</div>
+                </div>
+            </div>
+
+            <!-- API Charts: Hourly and Daily -->
+            <div class="charts-row">
+                <div class="card chart-card half-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Today's API Activity By Hour (UTC)</div>
+                    </div>
+                    <div id="chart-api-hourly" class="tv-chart-container" style="height: 260px;"></div>
+                </div>
+                <div class="card chart-card half-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Daily API Call Volume (Past 30 Days)</div>
+                    </div>
+                    <div id="chart-api-daily" class="tv-chart-container" style="height: 260px;"></div>
+                </div>
+            </div>
+
+            <!-- API Calls Log Table -->
+            <div class="card table-card">
+                <div class="table-header">
+                    <h3 class="card-title">Recent API Requests (Persistent Log)</h3>
+                    <button id="apiRefreshBtn" class="btn btn-sm btn-secondary">🔄 Refresh Log</button>
+                </div>
+                <div class="table-scroll">
+                    <table id="apiCallsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Endpoint</th>
+                                <th>Request Detail / Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="3" class="text-center text-muted">Loading API activity log...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Optimizer Modal -->
+    <div id="optimizerModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">⚡ Strategy Parameter Optimizer</h3>
+                <button id="optCloseBtn" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="optTrials">Number of Trials:</label>
+                        <input type="number" id="optTrials" value="30" min="5" max="200" class="form-input" style="width: 80px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="optTargetSharpe">Target Sharpe:</label>
+                        <input type="number" id="optTargetSharpe" value="1.0" step="0.1" class="form-input" style="width: 80px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="optMinTrades">Min Trades:</label>
+                        <input type="number" id="optMinTrades" value="10" min="1" class="form-input" style="width: 80px;">
+                    </div>
+                    <button id="optStartBtn" class="btn btn-primary" style="align-self: flex-end;">Start Search</button>
+                </div>
+
+                <div id="optProgress" class="console-box" style="margin: 15px 0; height: 90px; display: none;">Optimizing...</div>
+
+                <div id="optBestBanner" class="alert-banner success" style="display: none;"></div>
+
+                <div class="table-scroll" style="max-height: 350px;">
+                    <table id="optResultsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Sharpe</th>
+                                <th>CAGR</th>
+                                <th>Max DD</th>
+                                <th>Win Rate</th>
+                                <th>Trades</th>
+                                <th>Profit Factor</th>
+                                <th>Parameters</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="9" class="text-center text-muted">Click 'Start Search' to explore parameter combinations.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="/static/app.js"></script>
+</body>
+</html>
