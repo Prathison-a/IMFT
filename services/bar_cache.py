@@ -50,15 +50,31 @@ class BarCache:
                 data = json.load(f)
             fetched_at = datetime.fromisoformat(data["fetched_at_utc"])
             now_utc = datetime.now(timezone.utc)
-            if fetched_at.date() != now_utc.date():
-                return None
             range_start = datetime.fromisoformat(data["range_start_utc"])
-            if range_start > request_start:
-                return None  # Doesn't cover requested start
+            range_end = datetime.fromisoformat(data.get("range_end_utc", fetched_at.isoformat()))
+
+            # Ensure tz-aware comparison
+            if request_start.tzinfo is None:
+                request_start = request_start.replace(tzinfo=timezone.utc)
+            if request_end.tzinfo is None:
+                request_end = request_end.replace(tzinfo=timezone.utc)
+            if range_start.tzinfo is None:
+                range_start = range_start.replace(tzinfo=timezone.utc)
+            if range_end.tzinfo is None:
+                range_end = range_end.replace(tzinfo=timezone.utc)
+
+            # Check if cache completely covers the requested historical range OR was fetched today
+            covers_requested_range = (range_start <= request_start and range_end >= request_end)
+            fetched_today = (fetched_at.date() == now_utc.date() and range_start <= request_start)
+
+            if not (covers_requested_range or fetched_today):
+                return None
 
             bars: List[PriceBar] = []
             for b in data.get("bars", []):
                 t = datetime.fromisoformat(b["time_utc"])
+                if t.tzinfo is None:
+                    t = t.replace(tzinfo=timezone.utc)
                 if request_start <= t <= request_end:
                     bars.append(PriceBar(
                         time_utc=t,
@@ -68,6 +84,10 @@ class BarCache:
                         close=float(b["close"]),
                         volume=float(b["volume"]),
                     ))
+
+            if not bars:
+                return None
+
             return bars
         except Exception:
             return None
@@ -75,21 +95,46 @@ class BarCache:
     def store(self, symbol: str, tf_key: str, range_start: datetime, range_end: datetime, bars: List[PriceBar]):
         path = self._path_for(symbol, tf_key)
         now_utc = datetime.now(timezone.utc)
+
+        # Merge with existing bars if present
+        existing_bars_map = {}
+        if path.exists():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    old_data = json.load(f)
+                old_range_start = datetime.fromisoformat(old_data["range_start_utc"])
+                old_range_end = datetime.fromisoformat(old_data.get("range_end_utc", old_data["fetched_at_utc"]))
+                if old_range_start.tzinfo is None:
+                    old_range_start = old_range_start.replace(tzinfo=timezone.utc)
+                if old_range_end.tzinfo is None:
+                    old_range_end = old_range_end.replace(tzinfo=timezone.utc)
+
+                range_start = min(range_start, old_range_start)
+                range_end = max(range_end, old_range_end)
+
+                for b in old_data.get("bars", []):
+                    existing_bars_map[b["time_utc"]] = b
+            except Exception:
+                pass
+
+        for b in bars:
+            iso_t = b.time_utc.isoformat()
+            existing_bars_map[iso_t] = {
+                "time_utc": iso_t,
+                "open": b.open,
+                "high": b.high,
+                "low": b.low,
+                "close": b.close,
+                "volume": b.volume,
+            }
+
+        sorted_bars = sorted(existing_bars_map.values(), key=lambda x: x["time_utc"])
+
         payload = {
             "fetched_at_utc": now_utc.isoformat(),
             "range_start_utc": range_start.isoformat(),
             "range_end_utc": range_end.isoformat(),
-            "bars": [
-                {
-                    "time_utc": b.time_utc.isoformat(),
-                    "open": b.open,
-                    "high": b.high,
-                    "low": b.low,
-                    "close": b.close,
-                    "volume": b.volume,
-                }
-                for b in bars
-            ]
+            "bars": sorted_bars
         }
         try:
             with open(path, "w", encoding="utf-8") as f:

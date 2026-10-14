@@ -314,6 +314,15 @@ document.addEventListener("DOMContentLoaded", () => {
                         <input type="checkbox" id="param_${p.key}" ${p.default_value ? "checked" : ""}> ${p.label}
                     </label>
                 `;
+            } else if (p.key === "TradeDirection") {
+                row.innerHTML = `
+                    <label for="param_${p.key}">${p.label}:</label>
+                    <select id="param_${p.key}" class="form-select">
+                        <option value="Both" ${p.default_value === "Both" ? "selected" : ""}>Both (Calls & Puts)</option>
+                        <option value="Calls Only" ${p.default_value === "Calls Only" ? "selected" : ""}>Calls Only (Long)</option>
+                        <option value="Puts Only" ${p.default_value === "Puts Only" ? "selected" : ""}>Puts Only (Short)</option>
+                    </select>
+                `;
             } else {
                 row.innerHTML = `
                     <label for="param_${p.key}">${p.label}:</label>

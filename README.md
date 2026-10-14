@@ -26,26 +26,30 @@ The Python edition mirrors the complete architecture and analytical rigor of the
    - Comprehensive bar data grid with export to CSV.
 
 2. **Multi-Strategy Backtester**
-   - Fast backtesting engine supporting all **19 trading strategies**:
-     - Supertrend MTF
+   - Fast backtesting engine supporting **23 quantitative & technical trading strategies**:
+     - Supertrend MTF (Multi-Timeframe)
      - Donchian Breakout
      - ATR Dynamic Stop Reversal
-     - Chandelier Trend Following
-     - EMA Cross (9/21, 50/200, customizable)
-     - RSI Mean Reversion
-     - MACD Histogram Momentum
-     - Bollinger Bands Mean Reversion
-     - Keltner Channel Breakout
-     - Hull MA Directional
-     - TTM Squeeze Breakout
-     - VWAP Mean Reversion
-     - TMO (True Momentum)
+     - Moving Average Crossover (SMA/EMA)
+     - Hull MA Turn
+     - True Momentum Oscillator (TMO)
      - Trend Flow
-     - Composite Index
-     - Momentum Trend
-     - Triple EMA (TEMA)
-     - Stochastic RSI
-     - Williams %R Reversal
+     - EMA Bands
+     - Anchored VWAP
+     - VWAP + EMA
+     - VWAP Pullback
+     - Keltner RSI Mean Reversion
+     - RSI Extremes
+     - Bollinger Breakout
+     - TTM Squeeze Breakout
+     - Fibonacci EMA
+     - Liquidity Sweep
+     - ICT / SMC Liquidity
+     - MACD Momentum
+     - Institutional MA Trend Filter (IMTF)
+     - **SPY Micro Trade Engine (IMTF + MTF)**: 1-min multi-timeframe micro scalp & momentum engine with chop filter, 8-point confluence score, and dynamic TP1/TP2 trailing stops.
+     - **SPY CIPHER v2.0 (Intraday CALL/PUT Engine)**: Full Pine Script v6 port featuring multi-timeframe bias confirmation (15m/5m), market regime classifier (trend/chop/squeeze), confluence checklist score, breakout/retest/pullback/reversal models, and dynamic TP1/TP2 trailing risk management.
+     - **SPY Pullback - RSI(2) in Trend**: Connors-style RSI(2) pullback in trend strategy entering long when price > 200 EMA (and intraday VWAP) with extreme oversold RSI(2) < 10, exiting on snapback above 5 EMA, RSI(2) > 70, ATR stop loss, or session close.
    - Execution metrics: Net Profit, Sharpe Ratio (annualized), CAGR %, Max Drawdown %, Win Rate %, Profit Factor, Average Win/Loss, Total Trades.
    - Visual Equity Curve & Interactive Trade Log table.
    - **Monte Carlo Parameter Optimizer**: randomized parameter exploration ranked by risk-adjusted performance (`Sharpe * sqrt(trades)`).
@@ -142,9 +146,12 @@ python desktop_app.py
 ---
 
 ## API Keys Configuration
-You can supply your Alpaca API credentials directly in the **Data Viewer** or **API Monitor** tab in the UI, or export them as environment variables:
+You can supply your Alpaca API credentials via a `.env` file or export them as environment variables:
 ```bash
-set APCA_API_KEY_ID=your_key_here
-set APCA_API_SECRET_KEY=your_secret_here
+set ALPACA_API_KEY=your_key_here
+set ALPACA_SECRET_KEY=your_secret_here
+set ALPACA_BASE_URL=https://paper-api.alpaca.markets/v2
 ```
-Free-tier accounts will operate seamlessly with the built-in rate pacing and local bar caching.
+*(Legacy `APCA_API_KEY_ID` and `APCA_API_SECRET_KEY` are also supported).*
+Accounts will operate with built-in rate pacing and persistent local disk caching to prevent redundant API calls.
+
