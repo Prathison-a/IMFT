@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Global State & Palette ---
     let isDark = true;
     let registeredStrategies = [];
-
+    let isDark = true;
     const PALETTE = {
         dark: {
             bg: '#161B26',
